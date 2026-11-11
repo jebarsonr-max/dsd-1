@@ -1,0 +1,2250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DSD Micro Project (Batch 9) — LFSR Pseudo-Random Sequence Generator</title>
+  <style>
+    :root {
+      --bg-base: #060913;
+      --bg-panel: #0c1222;
+      --bg-card: #111a2e;
+      --bg-input: #080d1a;
+      --border-subtle: rgba(56, 189, 248, 0.16);
+      --border-bright: rgba(0, 245, 212, 0.48);
+      --cyan: #00f5d4;
+      --blue: #38bdf8;
+      --violet: #a855f7;
+      --amber: #f59e0b;
+      --rose: #fb7185;
+      --emerald: #10b981;
+      --text-main: #e2e8f0;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+      --wire-off: #2b3a55;
+      --wire-on: #00f5d4;
+      --glow-cyan: 0 0 14px rgba(0, 245, 212, 0.45), 0 0 28px rgba(0, 245, 212, 0.15);
+      --glow-blue: 0 0 14px rgba(56, 189, 248, 0.4);
+      --glow-amber: 0 0 14px rgba(245, 158, 11, 0.45);
+      --glow-rose: 0 0 14px rgba(251, 113, 133, 0.45);
+      --font-sans: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+      --font-mono: "JetBrains Mono", "Fira Code", "Cascadia Code", Consolas, monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      background-color: var(--bg-base);
+      background-image:
+        radial-gradient(circle at 15% 10%, rgba(0, 245, 212, 0.07), transparent 36%),
+        radial-gradient(circle at 85% 15%, rgba(168, 85, 247, 0.08), transparent 36%),
+        linear-gradient(rgba(56, 189, 248, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(56, 189, 248, 0.03) 1px, transparent 1px);
+      background-size: 100% 100%, 100% 100%, 36px 36px, 36px 36px;
+      color: var(--text-main);
+      font-family: var(--font-sans);
+      line-height: 1.55;
+      min-height: 100vh;
+    }
+
+    /* Header & Navigation */
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 40;
+      backdrop-filter: blur(14px);
+      background: rgba(6, 9, 19, 0.85);
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .topbar-inner {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 0.85rem 1.25rem;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.85rem;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+    }
+
+    .brand-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, rgba(0, 245, 212, 0.18), rgba(56, 189, 248, 0.12));
+      border: 1px solid var(--border-bright);
+      display: grid;
+      place-items: center;
+      box-shadow: var(--glow-cyan);
+      flex-shrink: 0;
+    }
+
+    .brand-title {
+      font-size: 1.05rem;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+      color: #f8fafc;
+    }
+
+    .brand-sub {
+      font-size: 0.76rem;
+      font-family: var(--font-mono);
+      color: var(--cyan);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.45rem;
+      align-items: center;
+    }
+
+    .pill-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      padding: 0.16rem 0.55rem;
+      border-radius: 999px;
+      font-size: 0.72rem;
+      font-family: var(--font-mono);
+      border: 1px solid var(--border-subtle);
+      background: rgba(17, 26, 46, 0.8);
+      color: var(--blue);
+    }
+
+    .nav-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+    }
+
+    .nav-links a {
+      text-decoration: none;
+      color: var(--text-muted);
+      font-size: 0.84rem;
+      font-weight: 500;
+      padding: 0.42rem 0.78rem;
+      border-radius: 8px;
+      border: 1px solid transparent;
+      transition: all 0.2s ease;
+    }
+
+    .nav-links a:hover {
+      color: var(--cyan);
+      background: rgba(0, 245, 212, 0.08);
+      border-color: rgba(0, 245, 212, 0.25);
+    }
+
+    /* Container */
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 1.5rem 1.25rem 3.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.75rem;
+    }
+
+    /* Hero Banner */
+    .hero {
+      background: linear-gradient(135deg, rgba(12, 18, 34, 0.96), rgba(17, 26, 46, 0.92));
+      border: 1px solid var(--border-subtle);
+      border-radius: 16px;
+      padding: 1.4rem 1.6rem;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 1.25rem;
+      align-items: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(90deg, rgba(0, 245, 212, 0.06), transparent 55%, rgba(168, 85, 247, 0.06));
+      pointer-events: none;
+    }
+
+    .hero h1 {
+      font-size: clamp(1.3rem, 2.5vw, 1.9rem);
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      color: #f8fafc;
+      margin-bottom: 0.35rem;
+    }
+
+    .hero h1 span {
+      color: var(--cyan);
+      text-shadow: 0 0 18px rgba(0, 245, 212, 0.35);
+    }
+
+    .hero p {
+      color: var(--text-muted);
+      font-size: 0.94rem;
+      max-width: 78ch;
+    }
+
+    .hero-meta {
+      display: flex;
+      flex-direction: column;
+      gap: 0.45rem;
+      align-items: flex-end;
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+    }
+
+    .meta-chip {
+      padding: 0.35rem 0.75rem;
+      border-radius: 8px;
+      background: rgba(8, 13, 26, 0.85);
+      border: 1px solid rgba(56, 189, 248, 0.25);
+      color: var(--text-main);
+      white-space: nowrap;
+    }
+
+    .meta-chip strong {
+      color: var(--cyan);
+    }
+
+    /* Section Headings */
+    .section-header {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      margin-bottom: 0.85rem;
+    }
+
+    .section-title {
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: #f8fafc;
+    }
+
+    .section-num {
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      color: var(--cyan);
+      padding: 0.2rem 0.5rem;
+      border-radius: 6px;
+      background: rgba(0, 245, 212, 0.1);
+      border: 1px solid rgba(0, 245, 212, 0.3);
+    }
+
+    /* Card / Panel */
+    .panel {
+      background: var(--bg-panel);
+      border: 1px solid var(--border-subtle);
+      border-radius: 14px;
+      padding: 1.2rem;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+    }
+
+    .subcard {
+      background: var(--bg-card);
+      border: 1px solid rgba(56, 189, 248, 0.14);
+      border-radius: 12px;
+      padding: 1rem;
+    }
+
+    /* Simulator Layout */
+    .sim-grid {
+      display: grid;
+      grid-template-columns: 340px 1fr;
+      gap: 1.15rem;
+      align-items: start;
+    }
+
+    .controls-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 0.95rem;
+    }
+
+    .field-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.38rem;
+    }
+
+    .field-label {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .field-label code {
+      font-family: var(--font-mono);
+      color: var(--cyan);
+      text-transform: none;
+      font-size: 0.78rem;
+    }
+
+    select, input[type="text"] {
+      width: 100%;
+      background: var(--bg-input);
+      color: #f8fafc;
+      border: 1px solid rgba(56, 189, 248, 0.28);
+      border-radius: 8px;
+      padding: 0.55rem 0.75rem;
+      font-family: var(--font-mono);
+      font-size: 0.88rem;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    select:focus, input[type="text"]:focus {
+      border-color: var(--cyan);
+      box-shadow: 0 0 0 3px rgba(0, 245, 212, 0.14);
+    }
+
+    /* Segmented toggle */
+    .seg-group {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.4rem;
+      background: var(--bg-input);
+      padding: 0.28rem;
+      border-radius: 9px;
+      border: 1px solid rgba(56, 189, 248, 0.2);
+    }
+
+    .seg-group.cols-4 {
+      grid-template-columns: repeat(4, 1fr);
+    }
+
+    .seg-btn {
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      font-weight: 600;
+      padding: 0.42rem 0.4rem;
+      border-radius: 7px;
+      cursor: pointer;
+      transition: all 0.18s ease;
+    }
+
+    .seg-btn:hover {
+      color: #f8fafc;
+    }
+
+    .seg-btn.active {
+      background: rgba(0, 245, 212, 0.15);
+      border-color: rgba(0, 245, 212, 0.5);
+      color: var(--cyan);
+      box-shadow: 0 0 12px rgba(0, 245, 212, 0.18);
+    }
+
+    /* Custom Tap Checkboxes */
+    .tap-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+      margin-top: 0.2rem;
+    }
+
+    .tap-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      padding: 0.28rem 0.55rem;
+      border-radius: 6px;
+      background: var(--bg-input);
+      border: 1px solid rgba(56, 189, 248, 0.22);
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.15s ease;
+    }
+
+    .tap-pill input {
+      accent-color: var(--cyan);
+      cursor: pointer;
+    }
+
+    .tap-pill.checked {
+      border-color: var(--cyan);
+      color: var(--cyan);
+      background: rgba(0, 245, 212, 0.1);
+    }
+
+    /* Buttons */
+    .btn-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.5rem;
+    }
+
+    .btn-row.cols-3 {
+      grid-template-columns: 1.15fr 1fr 0.85fr;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.42rem;
+      padding: 0.58rem 0.8rem;
+      border-radius: 9px;
+      font-size: 0.84rem;
+      font-weight: 600;
+      font-family: var(--font-sans);
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: all 0.18s ease;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #00f5d4, #06b6d4);
+      color: #041019;
+      box-shadow: 0 0 16px rgba(0, 245, 212, 0.3);
+    }
+
+    .btn-primary:hover {
+      filter: brightness(1.08);
+      transform: translateY(-1px);
+    }
+
+    .btn-secondary {
+      background: rgba(56, 189, 248, 0.14);
+      border-color: rgba(56, 189, 248, 0.4);
+      color: var(--blue);
+    }
+
+    .btn-secondary:hover {
+      background: rgba(56, 189, 248, 0.22);
+    }
+
+    .btn-secondary.playing {
+      background: rgba(245, 158, 11, 0.16);
+      border-color: rgba(245, 158, 11, 0.55);
+      color: var(--amber);
+      box-shadow: var(--glow-amber);
+    }
+
+    .btn-ghost {
+      background: rgba(148, 163, 184, 0.08);
+      border-color: rgba(148, 163, 184, 0.25);
+      color: var(--text-main);
+    }
+
+    .btn-ghost:hover {
+      border-color: var(--rose);
+      color: var(--rose);
+    }
+
+    .btn-mini {
+      padding: 0.32rem 0.55rem;
+      font-size: 0.74rem;
+      border-radius: 6px;
+      font-family: var(--font-mono);
+    }
+
+    /* Slider */
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--cyan);
+      cursor: pointer;
+    }
+
+    .seed-msg {
+      font-size: 0.75rem;
+      font-family: var(--font-mono);
+      min-height: 1.1rem;
+    }
+
+    .seed-msg.warn {
+      color: var(--rose);
+    }
+
+    .seed-msg.ok {
+      color: var(--emerald);
+    }
+
+    /* Metrics Strip */
+    .metrics-strip {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+
+    .metric-box {
+      background: var(--bg-input);
+      border: 1px solid rgba(56, 189, 248, 0.18);
+      border-radius: 10px;
+      padding: 0.7rem 0.85rem;
+    }
+
+    .metric-label {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-dim);
+      margin-bottom: 0.2rem;
+    }
+
+    .metric-val {
+      font-family: var(--font-mono);
+      font-size: 1.08rem;
+      font-weight: 700;
+      color: #f8fafc;
+    }
+
+    .metric-sub {
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      margin-top: 0.12rem;
+    }
+
+    .metric-val.neon {
+      color: var(--cyan);
+      text-shadow: 0 0 10px rgba(0, 245, 212, 0.4);
+    }
+
+    /* Progress bar */
+    .period-bar-wrap {
+      width: 100%;
+      height: 6px;
+      border-radius: 999px;
+      background: rgba(148, 163, 184, 0.15);
+      overflow: hidden;
+      margin-top: 0.4rem;
+    }
+
+    .period-bar-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--blue), var(--cyan));
+      box-shadow: 0 0 8px rgba(0, 245, 212, 0.5);
+      transition: width 0.25s ease;
+    }
+
+    /* Circuit SVG Canvas */
+    .circuit-stage {
+      background: radial-gradient(circle at 50% 45%, rgba(16, 28, 52, 0.9), rgba(6, 10, 20, 0.98));
+      border: 1px solid rgba(56, 189, 248, 0.22);
+      border-radius: 12px;
+      padding: 0.85rem;
+      position: relative;
+      overflow-x: auto;
+    }
+
+    .circuit-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 0.65rem;
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+    }
+
+    .clk-led {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      padding: 0.25rem 0.65rem;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid rgba(148, 163, 184, 0.25);
+      color: var(--text-muted);
+      transition: all 0.15s ease;
+    }
+
+    .clk-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: #475569;
+      transition: all 0.15s ease;
+    }
+
+    .clk-led.pulse {
+      border-color: var(--amber);
+      color: var(--amber);
+      box-shadow: var(--glow-amber);
+    }
+
+    .clk-led.pulse .clk-dot {
+      background: var(--amber);
+      box-shadow: 0 0 10px var(--amber);
+    }
+
+    .status-badge {
+      padding: 0.25rem 0.65rem;
+      border-radius: 999px;
+      font-family: var(--font-mono);
+      font-size: 0.74rem;
+      font-weight: 600;
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      background: rgba(56, 189, 248, 0.1);
+      color: var(--blue);
+    }
+
+    .status-badge.maximal {
+      border-color: rgba(16, 185, 129, 0.5);
+      background: rgba(16, 185, 129, 0.15);
+      color: #34d399;
+      box-shadow: 0 0 12px rgba(16, 185, 129, 0.25);
+    }
+
+    .status-badge.lockup {
+      border-color: rgba(251, 113, 133, 0.55);
+      background: rgba(251, 113, 133, 0.15);
+      color: var(--rose);
+      box-shadow: var(--glow-rose);
+    }
+
+    .status-badge.short {
+      border-color: rgba(245, 158, 11, 0.5);
+      background: rgba(245, 158, 11, 0.14);
+      color: var(--amber);
+    }
+
+    #lfsrSvg {
+      width: 100%;
+      min-width: 640px;
+      height: auto;
+      display: block;
+    }
+
+    /* SVG animation classes */
+    .wire-path {
+      fill: none;
+      stroke: var(--wire-off);
+      stroke-width: 2.4;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      transition: stroke 0.2s ease, filter 0.2s ease;
+    }
+
+    .wire-path.active {
+      stroke: var(--wire-on);
+      filter: drop-shadow(0 0 5px rgba(0, 245, 212, 0.65));
+    }
+
+    .wire-path.clk-bus {
+      stroke: #475569;
+      stroke-width: 1.9;
+      stroke-dasharray: 5 4;
+    }
+
+    .wire-path.clk-bus.pulse {
+      stroke: var(--amber);
+      filter: drop-shadow(0 0 6px rgba(245, 158, 11, 0.8));
+      stroke-dasharray: none;
+    }
+
+    .wire-shift-anim {
+      stroke-dasharray: 8 6;
+      animation: dashFlow 0.45s linear infinite;
+    }
+
+    @keyframes dashFlow {
+      to {
+        stroke-dashoffset: -14;
+      }
+    }
+
+    .dff-box {
+      fill: #0d1629;
+      stroke: #334155;
+      stroke-width: 2;
+      rx: 10;
+      transition: stroke 0.22s ease, filter 0.22s ease;
+    }
+
+    .dff-box.high {
+      stroke: var(--cyan);
+      filter: drop-shadow(0 0 10px rgba(0, 245, 212, 0.38));
+    }
+
+    .dff-box.clk-flash {
+      stroke: var(--amber);
+      filter: drop-shadow(0 0 12px rgba(245, 158, 11, 0.55));
+    }
+
+    /* Output Sequence Ticker & Timing Analyzer */
+    .viz-split {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 0.9rem;
+      margin-top: 0.9rem;
+    }
+
+    .seq-box {
+      background: var(--bg-input);
+      border: 1px solid rgba(56, 189, 248, 0.18);
+      border-radius: 10px;
+      padding: 0.75rem 0.9rem;
+    }
+
+    .seq-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .seq-stream {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.3rem;
+      font-family: var(--font-mono);
+      max-height: 76px;
+      overflow-y: auto;
+    }
+
+    .bit-chip {
+      width: 24px;
+      height: 24px;
+      display: grid;
+      place-items: center;
+      border-radius: 5px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      background: rgba(51, 65, 85, 0.35);
+      color: var(--text-muted);
+      border: 1px solid rgba(148, 163, 184, 0.18);
+    }
+
+    .bit-chip.one {
+      background: rgba(0, 245, 212, 0.16);
+      color: var(--cyan);
+      border-color: rgba(0, 245, 212, 0.45);
+      box-shadow: 0 0 8px rgba(0, 245, 212, 0.2);
+    }
+
+    .bit-chip.latest {
+      outline: 2px solid var(--amber);
+    }
+
+    /* Timing Diagram Canvas */
+    .wave-wrap {
+      overflow-x: auto;
+    }
+
+    #waveSvg {
+      width: 100%;
+      min-width: 560px;
+      display: block;
+    }
+
+    /* State Table */
+    .table-wrap {
+      margin-top: 1.15rem;
+      border: 1px solid rgba(56, 189, 248, 0.18);
+      border-radius: 12px;
+      overflow: hidden;
+      background: var(--bg-input);
+    }
+
+    .table-head-bar {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.7rem 1rem;
+      background: rgba(17, 26, 46, 0.9);
+      border-bottom: 1px solid rgba(56, 189, 248, 0.16);
+    }
+
+    .table-scroll {
+      max-height: 310px;
+      overflow: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+    }
+
+    thead th {
+      position: sticky;
+      top: 0;
+      background: #0f172a;
+      color: var(--blue);
+      text-align: left;
+      padding: 0.6rem 0.85rem;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      border-bottom: 1px solid rgba(56, 189, 248, 0.2);
+      z-index: 2;
+    }
+
+    tbody td {
+      padding: 0.52rem 0.85rem;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.08);
+      color: var(--text-main);
+    }
+
+    tbody tr:hover {
+      background: rgba(56, 189, 248, 0.06);
+    }
+
+    tbody tr.current-row {
+      background: rgba(0, 245, 212, 0.1);
+    }
+
+    tbody tr.repeat-row {
+      background: rgba(245, 158, 11, 0.09);
+    }
+
+    .bit-cell {
+      display: inline-flex;
+      gap: 0.25rem;
+    }
+
+    .b-box {
+      display: inline-grid;
+      place-items: center;
+      width: 22px;
+      height: 22px;
+      border-radius: 4px;
+      font-weight: 700;
+      background: rgba(51, 65, 85, 0.35);
+      color: var(--text-muted);
+    }
+
+    .b-box.hi {
+      background: rgba(0, 245, 212, 0.18);
+      color: var(--cyan);
+      border: 1px solid rgba(0, 245, 212, 0.4);
+    }
+
+    /* Theory & Applications Sections */
+    .theory-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1.15rem;
+    }
+
+    .theory-card {
+      background: var(--bg-panel);
+      border: 1px solid var(--border-subtle);
+      border-radius: 14px;
+      padding: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.85rem;
+    }
+
+    .theory-card h3 {
+      font-size: 1.05rem;
+      color: #f8fafc;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .theory-card p, .theory-card li {
+      color: var(--text-muted);
+      font-size: 0.9rem;
+    }
+
+    .theory-card ul {
+      padding-left: 1.15rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.45rem;
+    }
+
+    .eq-box {
+      background: var(--bg-input);
+      border: 1px solid rgba(0, 245, 212, 0.28);
+      border-left: 3px solid var(--cyan);
+      border-radius: 8px;
+      padding: 0.7rem 0.95rem;
+      font-family: var(--font-mono);
+      font-size: 0.88rem;
+      color: #f8fafc;
+      overflow-x: auto;
+    }
+
+    .tt-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.85rem;
+    }
+
+    .tt-box {
+      background: var(--bg-input);
+      border: 1px solid rgba(56, 189, 248, 0.18);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    .tt-title {
+      padding: 0.48rem 0.75rem;
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      font-weight: 700;
+      background: rgba(17, 26, 46, 0.95);
+      border-bottom: 1px solid rgba(56, 189, 248, 0.15);
+      color: var(--cyan);
+    }
+
+    .tt-box table th, .tt-box table td {
+      text-align: center;
+      padding: 0.4rem 0.5rem;
+    }
+
+    .highlight-lockup {
+      color: var(--rose);
+      font-weight: 700;
+    }
+
+    .highlight-escape {
+      color: var(--emerald);
+      font-weight: 700;
+    }
+
+    .callout {
+      padding: 0.8rem 0.95rem;
+      border-radius: 10px;
+      background: rgba(168, 85, 247, 0.09);
+      border: 1px solid rgba(168, 85, 247, 0.32);
+      font-size: 0.86rem;
+      color: #e9d5ff;
+    }
+
+    .apps-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.15rem;
+    }
+
+    .app-card {
+      background: var(--bg-panel);
+      border: 1px solid var(--border-subtle);
+      border-radius: 14px;
+      padding: 1.2rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+      transition: transform 0.2s ease, border-color 0.2s ease;
+    }
+
+    .app-card:hover {
+      transform: translateY(-2px);
+      border-color: rgba(0, 245, 212, 0.4);
+    }
+
+    .app-badge {
+      align-self: flex-start;
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      padding: 0.2rem 0.55rem;
+      border-radius: 999px;
+      background: rgba(56, 189, 248, 0.14);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      color: var(--blue);
+    }
+
+    .app-card h3 {
+      font-size: 1.02rem;
+      color: #f8fafc;
+    }
+
+    .app-card p {
+      font-size: 0.88rem;
+      color: var(--text-muted);
+    }
+
+    .footer {
+      text-align: center;
+      padding: 1.5rem 1rem 0.5rem;
+      border-top: 1px solid var(--border-subtle);
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      color: var(--text-dim);
+    }
+
+    /* Responsive Breakpoints */
+    @media (max-width: 1080px) {
+      .sim-grid {
+        grid-template-columns: 1fr;
+      }
+      .theory-grid {
+        grid-template-columns: 1fr;
+      }
+      .apps-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 760px) {
+      .hero {
+        grid-template-columns: 1fr;
+      }
+      .hero-meta {
+        align-items: flex-start;
+      }
+      .metrics-strip {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      .tt-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Navigation -->
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <div class="brand-icon" aria-hidden="true">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#00f5d4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="5" width="7" height="14" rx="2"/>
+            <rect x="14" y="5" width="7" height="14" rx="2"/>
+            <path d="M10 12h4M6.5 19v2M17.5 19v2"/>
+          </svg>
+        </div>
+        <div>
+          <div class="brand-title">LFSR Pseudo-Random Sequence Generator</div>
+          <div class="brand-sub">
+            <span>DSD Micro Project</span>
+            <span class="pill-tag">Batch 9</span>
+            <span class="pill-tag">URK26AI-BATCH-3</span>
+          </div>
+        </div>
+      </div>
+
+      <nav class="nav-links" aria-label="Primary sections">
+        <a href="#simulator">Circuit Simulator</a>
+        <a href="#state-table">State Table</a>
+        <a href="#theory">D-FF &amp; Logic Theory</a>
+        <a href="#applications">Applications</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- Hero Section -->
+    <section class="hero">
+      <div>
+        <h1>Linear Feedback Shift Register <span>(LFSR)</span> Simulator</h1>
+        <p>
+          Interactive gate-level Digital System Design workbench demonstrating an <em>n</em>-bit Fibonacci LFSR
+          constructed from synchronous edge-triggered <strong>D Flip-Flops</strong> and <strong>XOR / XNOR</strong>
+          feedback logic for maximal-length (2<sup>n</sup> &minus; 1) pseudo-random binary sequence (PRBS) generation.
+        </p>
+      </div>
+      <div class="hero-meta">
+        <div class="meta-chip">Course: <strong>Digital System Design (DSD)</strong></div>
+        <div class="meta-chip">Team: <strong>Micro Project &middot; Batch 9</strong></div>
+        <div class="meta-chip">Batch Code: <strong>URK26AI-BATCH-3</strong></div>
+      </div>
+    </section>
+
+    <!-- 1. Interactive DSD Circuit Simulator -->
+    <section id="simulator" class="panel">
+      <div class="section-header">
+        <div class="section-title">
+          <span class="section-num">01</span>
+          <span>Interactive DSD Circuit Simulator</span>
+        </div>
+        <div style="display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center;">
+          <span class="pill-tag" id="polyBadge">P(x) = x⁴ + x³ + 1</span>
+          <span class="pill-tag" id="shiftDirBadge">Shift: Q₃ &rarr; Q₂ &rarr; Q₁ &rarr; Q₀</span>
+        </div>
+      </div>
+
+      <div class="sim-grid">
+        <!-- Left: Dynamic Control Panel -->
+        <aside class="subcard controls-stack">
+          <div class="field-group">
+            <div class="field-label">
+              <span>Register Width (n-bit)</span>
+              <code id="maxCycleLabel">Max Period: 15</code>
+            </div>
+            <div class="seg-group cols-4" id="bitWidthBtns">
+              <button type="button" class="seg-btn" data-bits="3">3-bit</button>
+              <button type="button" class="seg-btn active" data-bits="4">4-bit</button>
+              <button type="button" class="seg-btn" data-bits="5">5-bit</button>
+              <button type="button" class="seg-btn" data-bits="6">6-bit</button>
+            </div>
+          </div>
+
+          <div class="field-group">
+            <div class="field-label">
+              <span>Feedback Gate Type</span>
+              <code id="lockupLabel">Lockup: 0000</code>
+            </div>
+            <div class="seg-group" id="gateTypeBtns">
+              <button type="button" class="seg-btn active" data-gate="XOR">XOR (&oplus;)</button>
+              <button type="button" class="seg-btn" data-gate="XNOR">XNOR (&odot;)</button>
+            </div>
+          </div>
+
+          <div class="field-group">
+            <div class="field-label">
+              <span>Feedback Polynomial / Taps</span>
+              <code id="tapEqShort">Q₁ &oplus; Q₀</code>
+            </div>
+            <select id="polySelect" aria-label="Select feedback polynomial"></select>
+            <div class="tap-pills" id="customTapContainer" aria-label="Feedback tap toggles"></div>
+          </div>
+
+          <div class="field-group">
+            <div class="field-label">
+              <span>Initial Seed (Binary)</span>
+              <code id="seedFormatHint">4 bits (e.g. 1011)</code>
+            </div>
+            <input type="text" id="seedInput" value="1011" maxlength="6" spellcheck="false" autocomplete="off" />
+            <div class="seed-msg ok" id="seedMsg">Valid non-lockup seed loaded.</div>
+            <div class="btn-row">
+              <button type="button" class="btn btn-ghost btn-mini" id="randomSeedBtn">Random Valid Seed</button>
+              <button type="button" class="btn btn-ghost btn-mini" id="lockupSeedBtn">Test Lockup State</button>
+            </div>
+          </div>
+
+          <div class="field-group">
+            <div class="field-label">
+              <span>Clock Controls (CLK &uarr;)</span>
+              <code id="speedVal">2.0 Hz (500 ms)</code>
+            </div>
+            <div class="btn-row cols-3">
+              <button type="button" class="btn btn-primary" id="stepBtn" title="Trigger single rising clock edge">
+                Step &uarr;
+              </button>
+              <button type="button" class="btn btn-secondary" id="playBtn">
+                Play
+              </button>
+              <button type="button" class="btn btn-ghost" id="resetBtn">
+                Reset
+              </button>
+            </div>
+            <input type="range" id="speedSlider" min="100" max="2000" step="50" value="500" aria-label="Clock interval in milliseconds" />
+          </div>
+
+          <div class="subcard" style="background: var(--bg-input); padding: 0.75rem;">
+            <div class="field-label" style="margin-bottom: 0.35rem;">
+              <span>Live Excitation Equation</span>
+            </div>
+            <div id="liveExcitation" style="font-family: var(--font-mono); font-size: 0.82rem; color: var(--cyan); word-break: break-word;">
+              D₃ = Q₁ &oplus; Q₀ = 1 &oplus; 1 = 0
+            </div>
+          </div>
+        </aside>
+
+        <!-- Right: Circuit Diagram, Metrics & Waveforms -->
+        <div>
+          <!-- Live Telemetry Strip -->
+          <div class="metrics-strip">
+            <div class="metric-box">
+              <div class="metric-label">Current State</div>
+              <div class="metric-val neon" id="metricState">1011</div>
+              <div class="metric-sub" id="metricDecHex">Dec: 11 &middot; Hex: 0xB</div>
+            </div>
+            <div class="metric-box">
+              <div class="metric-label">Feedback Bit (FB)</div>
+              <div class="metric-val" id="metricFeedback">0</div>
+              <div class="metric-sub" id="metricNextD">Next D₃ &larr; 0</div>
+            </div>
+            <div class="metric-box">
+              <div class="metric-label">Clock Step &amp; Out</div>
+              <div class="metric-val" id="metricStep">t = 0</div>
+              <div class="metric-sub" id="metricOut">PRBS Out (Q₀): 1</div>
+            </div>
+            <div class="metric-box">
+              <div class="metric-label">Non-Repeating Period</div>
+              <div class="metric-val" id="metricPeriod">1 / 15</div>
+              <div class="period-bar-wrap">
+                <div class="period-bar-fill" id="periodBar"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Interactive SVG Circuit Diagram -->
+          <div class="circuit-stage">
+            <div class="circuit-toolbar">
+              <div style="display:flex; align-items:center; gap:0.65rem; flex-wrap:wrap;">
+                <span class="clk-led" id="clkLed">
+                  <span class="clk-dot"></span>
+                  <span>CLK &uarr; EDGE</span>
+                </span>
+                <span style="color:var(--text-muted);" id="diagramSubtitle">
+                  Fibonacci LFSR &middot; Rising-Edge Triggered D-FF Chain
+                </span>
+              </div>
+              <span class="status-badge" id="cycleStatusBadge">Active Sequence</span>
+            </div>
+
+            <svg id="lfsrSvg" viewBox="0 0 920 330" role="img" aria-label="Interactive n-bit LFSR logic gate diagram"></svg>
+          </div>
+
+          <!-- Output Sequence & Live Timing Waveform -->
+          <div class="viz-split">
+            <div class="seq-box">
+              <div class="seq-header">
+                <span class="field-label" style="margin:0;">Output PRBS Sequence (Q₀ stream)</span>
+                <button type="button" class="btn btn-ghost btn-mini" id="copySeqBtn">Copy Bits</button>
+              </div>
+              <div class="seq-stream" id="seqStream"></div>
+            </div>
+
+            <div class="seq-box">
+              <div class="seq-header">
+                <span class="field-label" style="margin:0;">Real-Time Logic Analyzer Timing Diagram (Last 16 Clock Cycles)</span>
+                <span style="font-family:var(--font-mono); font-size:0.72rem; color:var(--text-dim);">CLK &uarr; | Q<sub>n-1</sub>..Q<sub>0</sub> | FB</span>
+              </div>
+              <div class="wave-wrap">
+                <svg id="waveSvg" viewBox="0 0 820 190" role="img" aria-label="Digital timing waveform"></svg>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Dynamic State Table -->
+      <div id="state-table" class="table-wrap">
+        <div class="table-head-bar">
+          <div>
+            <strong style="font-size:0.94rem; color:#f8fafc;">Dynamic State Transition Table</strong>
+            <span style="font-family:var(--font-mono); font-size:0.76rem; color:var(--text-muted); margin-left:0.6rem;" id="tableSummary">
+              Showing step-by-step register transitions
+            </span>
+          </div>
+          <button type="button" class="btn btn-ghost btn-mini" id="exportCsvBtn">Export CSV</button>
+        </div>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr id="stateTableHead"></tr>
+            </thead>
+            <tbody id="stateTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. Gate-Level Architecture & DSD Theory -->
+    <section id="theory">
+      <div class="section-header">
+        <div class="section-title">
+          <span class="section-num">02</span>
+          <span>Gate-Level Architecture &amp; DSD Theory</span>
+        </div>
+        <span class="pill-tag">Synchronous Sequential Logic</span>
+      </div>
+
+      <div class="theory-grid">
+        <!-- D Flip-Flop Excitation & Timing -->
+        <article class="theory-card">
+          <h3>
+            <span style="color:var(--cyan);">&#9670;</span>
+            D Flip-Flop Excitation Equations &amp; Timing
+          </h3>
+          <p>
+            An <em>n</em>-bit LFSR uses <em>n</em> positive-edge-triggered <strong>D Flip-Flops</strong> connected in cascade.
+            On every rising clock edge (<code>CLK &uarr;</code>), each flip-flop samples its <code>D</code> input and updates <code>Q</code>:
+          </p>
+          <div class="eq-box">
+            Characteristic / Excitation Equation:  Q<sub>next</sub> = D<br/>
+            4-Bit Shift Equations:  Q₃⁺ = FB(t),   Q₂⁺ = Q₃(t),   Q₁⁺ = Q₂(t),   Q₀⁺ = Q₁(t)
+          </div>
+
+          <div class="tt-grid">
+            <div class="tt-box">
+              <div class="tt-title">D-FF Excitation Table</div>
+              <table>
+                <thead>
+                  <tr><th>Q(t)</th><th>Q(t+1)</th><th>D Input</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td>0</td><td>0</td><td>0</td></tr>
+                  <tr><td>0</td><td>1</td><td>1</td></tr>
+                  <tr><td>1</td><td>0</td><td>0</td></tr>
+                  <tr><td>1</td><td>1</td><td>1</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="tt-box">
+              <div class="tt-title">Timing Constraints</div>
+              <div style="padding:0.65rem 0.75rem; font-size:0.8rem; color:var(--text-muted); display:flex; flex-direction:column; gap:0.35rem;">
+                <div><strong style="color:var(--amber);">t<sub>su</sub> (Setup):</strong> Data stable before CLK &uarr;</div>
+                <div><strong style="color:var(--blue);">t<sub>h</sub> (Hold):</strong> Data held after CLK &uarr;</div>
+                <div><strong style="color:var(--cyan);">t<sub>pd</sub> (Prop Delay):</strong> CLK &uarr; to valid Q</div>
+                <div><strong style="color:var(--emerald);">f<sub>max</sub>:</strong> &le; 1 / (t<sub>pd</sub> + t<sub>XOR</sub> + t<sub>su</sub>)</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Static D-FF Timing Diagram SVG -->
+          <div style="background:var(--bg-input); border:1px solid rgba(56,189,248,0.18); border-radius:10px; padding:0.7rem;">
+            <div style="font-family:var(--font-mono); font-size:0.74rem; color:var(--text-muted); margin-bottom:0.4rem;">
+              D Flip-Flop Edge-Triggered Timing Diagram (t<sub>su</sub>, t<sub>h</sub>, t<sub>pd</sub>)
+            </div>
+            <svg viewBox="0 0 540 135" width="100%" aria-label="D Flip-Flop setup, hold, and propagation timing diagram">
+              <!-- Setup / Hold window highlight -->
+              <rect x="135" y="10" width="25" height="115" fill="rgba(245,158,11,0.12)" />
+              <rect x="160" y="10" width="20" height="115" fill="rgba(56,189,248,0.12)" />
+              <line x1="160" y1="8" x2="160" y2="125" stroke="#f59e0b" stroke-width="1.2" stroke-dasharray="3 3" />
+              <line x1="188" y1="8" x2="188" y2="125" stroke="#00f5d4" stroke-width="1.2" stroke-dasharray="3 3" />
+
+              <!-- Labels -->
+              <text x="10" y="34" fill="#f59e0b" font-family="monospace" font-size="11" font-weight="bold">CLK</text>
+              <text x="10" y="72" fill="#38bdf8" font-family="monospace" font-size="11" font-weight="bold">D</text>
+              <text x="10" y="108" fill="#00f5d4" font-family="monospace" font-size="11" font-weight="bold">Q</text>
+
+              <!-- CLK waveform -->
+              <polyline points="55,40 160,40 160,18 260,18 260,40 360,40 360,18 460,18 460,40 525,40"
+                        fill="none" stroke="#f59e0b" stroke-width="2"/>
+              <polygon points="160,24 156,31 164,31" fill="#f59e0b"/>
+              <polygon points="360,24 356,31 364,31" fill="#f59e0b"/>
+
+              <!-- D waveform -->
+              <polyline points="55,78 120,78 130,56 310,56 320,78 525,78"
+                        fill="none" stroke="#38bdf8" stroke-width="2"/>
+
+              <!-- Q waveform (changes after t_pd) -->
+              <polyline points="55,114 184,114 192,92 384,92 392,114 525,114"
+                        fill="none" stroke="#00f5d4" stroke-width="2"/>
+
+              <!-- Timing annotations -->
+              <text x="139" y="128" fill="#f59e0b" font-family="monospace" font-size="10">t_su</text>
+              <text x="164" y="128" fill="#38bdf8" font-family="monospace" font-size="10">t_h</text>
+              <text x="193" y="128" fill="#00f5d4" font-family="monospace" font-size="10">t_pd (CLK↑ → Q)</text>
+            </svg>
+          </div>
+        </article>
+
+        <!-- XOR / XNOR Truth Tables & Lockup State Analysis -->
+        <article class="theory-card">
+          <h3>
+            <span style="color:var(--violet);">&#9670;</span>
+            XOR / XNOR Feedback &amp; Lockup State Prevention
+          </h3>
+          <p>
+            The linear feedback function determines which binary state becomes a self-looping <strong>forbidden (lockup) state</strong>,
+            and why a maximal-length <em>n</em>-bit LFSR cycles through exactly <strong>2<sup>n</sup> &minus; 1</strong> non-repeating states.
+          </p>
+
+          <div class="tt-grid">
+            <div class="tt-box">
+              <div class="tt-title">XOR Gate (Y = A &oplus; B)</div>
+              <table>
+                <thead>
+                  <tr><th>A</th><th>B</th><th>Y</th><th>Note</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td>0</td><td>0</td><td class="highlight-lockup">0</td><td class="highlight-lockup">All-0 Lockup</td></tr>
+                  <tr><td>0</td><td>1</td><td>1</td><td>Active</td></tr>
+                  <tr><td>1</td><td>0</td><td>1</td><td>Active</td></tr>
+                  <tr><td>1</td><td>1</td><td>0</td><td>Active</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="tt-box">
+              <div class="tt-title">XNOR Gate (Y = A &odot; B)</div>
+              <table>
+                <thead>
+                  <tr><th>A</th><th>B</th><th>Y</th><th>Note</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td>0</td><td>0</td><td class="highlight-escape">1</td><td class="highlight-escape">Escapes 0000</td></tr>
+                  <tr><td>0</td><td>1</td><td>0</td><td>Active</td></tr>
+                  <tr><td>1</td><td>0</td><td>0</td><td>Active</td></tr>
+                  <tr><td>1</td><td>1</td><td class="highlight-lockup">1</td><td class="highlight-lockup">All-1 Lockup</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <ul>
+            <li>
+              <strong>Why XOR locks at <code>0000</code>:</strong> If all tapped flip-flops are <code>0</code>,
+              <code>0 &oplus; 0 = 0</code>. Every rising edge shifts another <code>0</code> into <code>Q<sub>n-1</sub></code>,
+              trapping the register indefinitely.
+            </li>
+            <li>
+              <strong>How XNOR prevents all-zero lockup:</strong> Since <code>XNOR(0, 0) = 1</code>, a power-on reset to
+              <code>0000</code> automatically injects a <code>1</code> (<code>0000 &rarr; 1000</code>) and enters the 15-state cycle.
+              (Instead, <code>1111</code> becomes the lockup state for even-tap polynomials.)
+            </li>
+            <li>
+              <strong>Hardware Recovery Guard:</strong> Practical ASIC/FPGA designs add either asynchronous <code>PRESET</code> on one
+              D-FF during reset or a multi-input <code>NOR</code> detector across <code>Q<sub>n-1</sub>..Q₀</code> OR-ed into the feedback path
+              to guarantee zero-state recovery.
+            </li>
+          </ul>
+
+          <div class="callout">
+            <strong>Primitive Polynomial Rule:</strong> Only polynomials primitive over Galois Field GF(2) (such as
+            <code>x⁴ + x³ + 1</code> or <code>x⁴ + x + 1</code>) achieve the full period <strong>2<sup>n</sup> &minus; 1 = 15</strong>.
+            Non-primitive polynomials like <code>x⁴ + x² + 1</code> partition states into shorter sub-cycles.
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <!-- 3. Applications of LFSRs -->
+    <section id="applications">
+      <div class="section-header">
+        <div class="section-title">
+          <span class="section-num">03</span>
+          <span>Real-World Embedded &amp; VLSI Applications</span>
+        </div>
+        <span class="pill-tag">Hardware PRNGs</span>
+      </div>
+
+      <div class="apps-grid">
+        <article class="app-card">
+          <span class="app-badge">Cryptography &amp; Security</span>
+          <h3>Stream Ciphers &amp; Keystream Generators</h3>
+          <p>
+            LFSRs form the core building blocks of hardware stream ciphers (e.g., GSM <strong>A5/1</strong>, <strong>Grain</strong>,
+            and <strong>Trivium</strong>) because they require minimal silicon area and run at multi-GHz clock speeds.
+          </p>
+          <p style="font-size:0.82rem; color:var(--blue);">
+            Engineering Note: Because a single LFSR is linear over GF(2) (vulnerable to the Berlekamp-Massey algorithm after 2n bits),
+            cryptosystems combine multiple irregularly clocked LFSRs with non-linear filter functions.
+          </p>
+        </article>
+
+        <article class="app-card">
+          <span class="app-badge">VLSI Testing</span>
+          <h3>Built-In Self-Test (BIST)</h3>
+          <p>
+            In SoCs and FPGAs, an on-chip LFSR acts as a <strong>Pseudo-Random Test Pattern Generator (TPG)</strong>
+            applying exhaustive or near-exhaustive vectors to combinational logic blocks without expensive external ATE testers.
+          </p>
+          <p style="font-size:0.82rem; color:var(--blue);">
+            A companion LFSR configured as a <strong>MISR (Multiple-Input Signature Register)</strong> compresses millions of test
+            responses into a single deterministic golden signature.
+          </p>
+        </article>
+
+        <article class="app-card">
+          <span class="app-badge">RF, DSP &amp; Comms</span>
+          <h3>Noise Generation, Scramblers &amp; CDMA</h3>
+          <p>
+            Maximal-length (<em>m</em>-sequence) LFSRs exhibit white-noise-like autocorrelation spikes, making them ideal for
+            digital <strong>AWGN / dither noise</strong>, <strong>GPS &amp; CDMA Gold codes</strong>, and <strong>CRC</strong> error checking.
+          </p>
+          <p style="font-size:0.82rem; color:var(--blue);">
+            High-speed links (PCIe, SATA, Ethernet) use self-synchronizing LFSR scramblers to eliminate long runs of 0s or 1s
+            for reliable clock data recovery (CDR).
+          </p>
+        </article>
+      </div>
+    </section>
+
+    <footer class="footer">
+      Digital System Design (DSD) Micro Project &middot; Batch 9 &middot; URK26AI-BATCH-3 &middot; Single-File Interactive Hardware Simulator
+    </footer>
+  </main>
+
+  <script>
+    (() => {
+      "use strict";
+
+      /**
+       * Polynomial catalog per bit width n.
+       * Bit convention: state array index 0 is Q_{n-1} (MSB, receives feedback D_{n-1}),
+       * index n-1 is Q_0 (LSB, output bit).
+       * tapIndices stores indices into the state array [0 .. n-1] corresponding to Q_{n-1} .. Q_0.
+       */
+      const POLYNOMIALS = {
+        3: [
+          { id: "3_3_2", label: "x³ + x² + 1 (Primitive · Max 7)", polyText: "x³ + x² + 1", tapsQ: [1, 0], primitive: true },
+          { id: "3_3_1", label: "x³ + x + 1 (Primitive · Max 7)", polyText: "x³ + x + 1", tapsQ: [2, 0], primitive: true },
+          { id: "custom", label: "Custom Tap Selection...", polyText: "Custom", tapsQ: [1, 0], primitive: false }
+        ],
+        4: [
+          { id: "4_4_3", label: "x⁴ + x³ + 1 (Primitive · Max 15)", polyText: "x⁴ + x³ + 1", tapsQ: [1, 0], primitive: true },
+          { id: "4_4_1", label: "x⁴ + x + 1 (Primitive · Max 15)", polyText: "x⁴ + x + 1", tapsQ: [3, 0], primitive: true },
+          { id: "4_4_2", label: "x⁴ + x² + 1 (Non-Primitive · Short Cycle)", polyText: "x⁴ + x² + 1", tapsQ: [2, 0], primitive: false },
+          { id: "custom", label: "Custom Tap Selection...", polyText: "Custom", tapsQ: [1, 0], primitive: false }
+        ],
+        5: [
+          { id: "5_5_3", label: "x⁵ + x³ + 1 (Primitive · Max 31)", polyText: "x⁵ + x³ + 1", tapsQ: [2, 0], primitive: true },
+          { id: "5_5_2", label: "x⁵ + x² + 1 (Primitive · Max 31)", polyText: "x⁵ + x² + 1", tapsQ: [3, 0], primitive: true },
+          { id: "5_5_4_3_2", label: "x⁵ + x⁴ + x³ + x² + 1 (4-Tap Primitive · Max 31)", polyText: "x⁵ + x⁴ + x³ + x² + 1", tapsQ: [3, 2, 1, 0], primitive: true },
+          { id: "custom", label: "Custom Tap Selection...", polyText: "Custom", tapsQ: [2, 0], primitive: false }
+        ],
+        6: [
+          { id: "6_6_5", label: "x⁶ + x⁵ + 1 (Primitive · Max 63)", polyText: "x⁶ + x⁵ + 1", tapsQ: [1, 0], primitive: true },
+          { id: "6_6_1", label: "x⁶ + x + 1 (Primitive · Max 63)", polyText: "x⁶ + x + 1", tapsQ: [5, 0], primitive: true },
+          { id: "6_6_3", label: "x⁶ + x³ + 1 (Non-Primitive · Short Cycle)", polyText: "x⁶ + x³ + 1", tapsQ: [3, 0], primitive: false },
+          { id: "custom", label: "Custom Tap Selection...", polyText: "Custom", tapsQ: [1, 0], primitive: false }
+        ]
+      };
+
+      const DEFAULT_SEEDS = {
+        3: "101",
+        4: "1011",
+        5: "10110",
+        6: "101101"
+      };
+
+      // Simulator state
+      const state = {
+        bits: 4,
+        gate: "XOR", // "XOR" | "XNOR"
+        polyId: "4_4_3",
+        tapsQ: [1, 0], // Q bit indices (0 = LSB Q0, n-1 = MSB Q_{n-1})
+        seedStr: "1011",
+        reg: [1, 0, 1, 1], // index 0 = Q_{n-1} (MSB), index n-1 = Q_0 (LSB)
+        step: 0,
+        history: [], // array of { step, bitsStr, fb, outBit, dec, status }
+        visitedStates: new Set(),
+        cyclePeriodFound: null,
+        isPlaying: false,
+        intervalMs: 500,
+        timerId: null,
+        pulseTimeoutId: null
+      };
+
+      // DOM elements
+      const el = {
+        bitWidthBtns: document.getElementById("bitWidthBtns"),
+        gateTypeBtns: document.getElementById("gateTypeBtns"),
+        polySelect: document.getElementById("polySelect"),
+        customTapContainer: document.getElementById("customTapContainer"),
+        seedInput: document.getElementById("seedInput"),
+        seedMsg: document.getElementById("seedMsg"),
+        seedFormatHint: document.getElementById("seedFormatHint"),
+        randomSeedBtn: document.getElementById("randomSeedBtn"),
+        lockupSeedBtn: document.getElementById("lockupSeedBtn"),
+        stepBtn: document.getElementById("stepBtn"),
+        playBtn: document.getElementById("playBtn"),
+        resetBtn: document.getElementById("resetBtn"),
+        speedSlider: document.getElementById("speedSlider"),
+        speedVal: document.getElementById("speedVal"),
+        maxCycleLabel: document.getElementById("maxCycleLabel"),
+        lockupLabel: document.getElementById("lockupLabel"),
+        tapEqShort: document.getElementById("tapEqShort"),
+        polyBadge: document.getElementById("polyBadge"),
+        shiftDirBadge: document.getElementById("shiftDirBadge"),
+        liveExcitation: document.getElementById("liveExcitation"),
+        metricState: document.getElementById("metricState"),
+        metricDecHex: document.getElementById("metricDecHex"),
+        metricFeedback: document.getElementById("metricFeedback"),
+        metricNextD: document.getElementById("metricNextD"),
+        metricStep: document.getElementById("metricStep"),
+        metricOut: document.getElementById("metricOut"),
+        metricPeriod: document.getElementById("metricPeriod"),
+        periodBar: document.getElementById("periodBar"),
+        clkLed: document.getElementById("clkLed"),
+        cycleStatusBadge: document.getElementById("cycleStatusBadge"),
+        lfsrSvg: document.getElementById("lfsrSvg"),
+        seqStream: document.getElementById("seqStream"),
+        copySeqBtn: document.getElementById("copySeqBtn"),
+        waveSvg: document.getElementById("waveSvg"),
+        stateTableHead: document.getElementById("stateTableHead"),
+        stateTableBody: document.getElementById("stateTableBody"),
+        tableSummary: document.getElementById("tableSummary"),
+        exportCsvBtn: document.getElementById("exportCsvBtn")
+      };
+
+      // Helpers for bit ordering: reg[0] is MSB Q_{n-1}, reg[n-1] is LSB Q_0
+      function getQBit(qIndex) {
+        // qIndex in [0 .. bits-1], where 0 is Q0, bits-1 is Q_{n-1}
+        return state.reg[state.bits - 1 - qIndex];
+      }
+
+      function computeFeedback(regArr = state.reg) {
+        if (state.tapsQ.length === 0) return state.gate === "XOR" ? 0 : 1;
+        let xorVal = 0;
+        for (const qIdx of state.tapsQ) {
+          xorVal ^= regArr[state.bits - 1 - qIdx];
+        }
+        return state.gate === "XOR" ? xorVal : (xorVal ^ 1);
+      }
+
+      function isLockupState(bitsStr) {
+        const targetChar = state.gate === "XOR" ? "0" : "1";
+        return bitsStr.split("").every(ch => ch === targetChar);
+      }
+
+      function regToStr(regArr = state.reg) {
+        return regArr.join("");
+      }
+
+      function formatSubscript(num) {
+        const subs = ["₀", "₁", "₂", "₃", "₄", "₅", "₆", "₇"];
+        return String(num).split("").map(d => subs[Number(d)] || d).join("");
+      }
+
+      function buildPolynomialLabel() {
+        const activePoly = POLYNOMIALS[state.bits].find(p => p.id === state.polyId);
+        if (activePoly && activePoly.id !== "custom") {
+          return activePoly.polyText;
+        }
+        if (state.tapsQ.length === 0) return "No Taps (Shift Only)";
+        const exps = [...state.tapsQ]
+          .map(qIdx => state.bits - qIdx)
+          .sort((a, b) => b - a)
+          .map(exp => (exp === 1 ? "x" : `x^${exp}`));
+        return `${exps.join(" + ")} + 1`;
+      }
+
+      function populatePolyDropdown() {
+        const list = POLYNOMIALS[state.bits];
+        el.polySelect.innerHTML = "";
+        for (const p of list) {
+          const opt = document.createElement("option");
+          opt.value = p.id;
+          opt.textContent = p.label;
+          el.polySelect.appendChild(opt);
+        }
+        const exists = list.some(p => p.id === state.polyId);
+        if (!exists) {
+          state.polyId = list[0].id;
+          state.tapsQ = [...list[0].tapsQ];
+        }
+        el.polySelect.value = state.polyId;
+      }
+
+      function renderTapCheckboxes() {
+        el.customTapContainer.innerHTML = "";
+        for (let q = state.bits - 1; q >= 0; q--) {
+          const checked = state.tapsQ.includes(q);
+          const label = document.createElement("label");
+          label.className = `tap-pill${checked ? " checked" : ""}`;
+          const cb = document.createElement("input");
+          cb.type = "checkbox";
+          cb.checked = checked;
+          cb.addEventListener("change", () => {
+            if (cb.checked) {
+              if (!state.tapsQ.includes(q)) state.tapsQ.push(q);
+            } else {
+              state.tapsQ = state.tapsQ.filter(x => x !== q);
+            }
+            state.tapsQ.sort((a, b) => b - a);
+            state.polyId = "custom";
+            el.polySelect.value = "custom";
+            resetSimulation(false);
+          });
+          const span = document.createElement("span");
+          span.textContent = `Q${formatSubscript(q)}`;
+          label.appendChild(cb);
+          label.appendChild(span);
+          el.customTapContainer.appendChild(label);
+        }
+      }
+
+      function parseSeedInput() {
+        const raw = el.seedInput.value.trim();
+        const isBinary = /^[01]+$/.test(raw);
+        if (!isBinary || raw.length !== state.bits) {
+          el.seedMsg.className = "seed-msg warn";
+          el.seedMsg.textContent = `Enter exactly ${state.bits} binary bits (0 or 1).`;
+          return null;
+        }
+        if (isLockupState(raw)) {
+          el.seedMsg.className = "seed-msg warn";
+          el.seedMsg.textContent = `Warning: ${raw} is the ${state.gate} lockup state!`;
+        } else {
+          el.seedMsg.className = "seed-msg ok";
+          el.seedMsg.textContent = `Valid ${state.bits}-bit seed loaded (${raw}).`;
+        }
+        return raw.split("").map(Number);
+      }
+
+      function resetSimulation(stopAuto = true) {
+        if (stopAuto) stopAutoClock();
+
+        const parsed = parseSeedInput();
+        const fallback = DEFAULT_SEEDS[state.bits].split("").map(Number);
+        state.reg = parsed ? [...parsed] : fallback;
+        if (parsed) state.seedStr = el.seedInput.value.trim();
+
+        state.step = 0;
+        state.visitedStates = new Set([regToStr()]);
+        state.cyclePeriodFound = null;
+
+        const fb = computeFeedback();
+        const outBit = state.reg[state.bits - 1];
+        const dec = parseInt(regToStr(), 2);
+        const lockup = isLockupState(regToStr());
+
+        state.history = [{
+          step: 0,
+          bitsStr: regToStr(),
+          regSnapshot: [...state.reg],
+          fb,
+          outBit,
+          dec,
+          status: lockup ? "Lockup" : "Seed"
+        }];
+
+        renderAll(false);
+      }
+
+      function stepClock() {
+        const fb = computeFeedback();
+        // Right shift: Q_{n-1} -> Q_{n-2} -> ... -> Q_0, and D_{n-1} <- fb
+        const nextReg = [fb, ...state.reg.slice(0, state.bits - 1)];
+        state.reg = nextReg;
+        state.step += 1;
+
+        const bitsStr = regToStr();
+        const nextFb = computeFeedback();
+        const outBit = state.reg[state.bits - 1];
+        const dec = parseInt(bitsStr, 2);
+
+        let status = "Shift";
+        if (isLockupState(bitsStr)) {
+          status = "Lockup";
+        } else if (state.visitedStates.has(bitsStr)) {
+          if (state.cyclePeriodFound === null) {
+            state.cyclePeriodFound = state.visitedStates.size;
+          }
+          status = `Repeat (T=${state.cyclePeriodFound})`;
+        } else {
+          state.visitedStates.add(bitsStr);
+        }
+
+        state.history.push({
+          step: state.step,
+          bitsStr,
+          regSnapshot: [...state.reg],
+          fb: nextFb,
+          outBit,
+          dec,
+          status
+        });
+
+        // Keep history reasonable in long auto-runs
+        if (state.history.length > 260) {
+          state.history.shift();
+        }
+
+        triggerClockFlash();
+        renderAll(true);
+      }
+
+      function triggerClockFlash() {
+        el.clkLed.classList.add("pulse");
+        clearTimeout(state.pulseTimeoutId);
+        state.pulseTimeoutId = setTimeout(() => {
+          el.clkLed.classList.remove("pulse");
+          document.querySelectorAll(".dff-box.clk-flash, .wire-path.clk-bus.pulse").forEach(node => {
+            node.classList.remove("clk-flash", "pulse");
+          });
+        }, Math.min(260, state.intervalMs * 0.65));
+      }
+
+      function startAutoClock() {
+        if (state.isPlaying) return;
+        state.isPlaying = true;
+        el.playBtn.textContent = "Pause";
+        el.playBtn.classList.add("playing");
+        state.timerId = setInterval(stepClock, state.intervalMs);
+      }
+
+      function stopAutoClock() {
+        state.isPlaying = false;
+        clearInterval(state.timerId);
+        state.timerId = null;
+        el.playBtn.textContent = "Play";
+        el.playBtn.classList.remove("playing");
+      }
+
+      function renderHeaderAndControls() {
+        const maxLen = (1 << state.bits) - 1;
+        el.maxCycleLabel.textContent = `Max Period: ${maxLen}`;
+        el.lockupLabel.textContent = `Lockup: ${(state.gate === "XOR" ? "0" : "1").repeat(state.bits)}`;
+        el.seedFormatHint.textContent = `${state.bits} bits (e.g. ${DEFAULT_SEEDS[state.bits]})`;
+        el.seedInput.maxLength = state.bits;
+
+        const opSym = state.gate === "XOR" ? "⊕" : "⊙";
+        const sortedTaps = [...state.tapsQ].sort((a, b) => b - a);
+        el.tapEqShort.textContent = sortedTaps.length
+          ? sortedTaps.map(q => `Q${formatSubscript(q)}`).join(` ${opSym} `)
+          : "Const";
+
+        el.polyBadge.textContent = `P(x) = ${buildPolynomialLabel()}`;
+        const qList = [];
+        for (let q = state.bits - 1; q >= 0; q--) qList.push(`Q${formatSubscript(q)}`);
+        el.shiftDirBadge.textContent = `Shift: ${qList.join(" → ")}`;
+
+        // Live excitation string
+        const fb = computeFeedback();
+        const msbSub = formatSubscript(state.bits - 1);
+        if (sortedTaps.length > 0) {
+          const symExpr = sortedTaps.map(q => `Q${formatSubscript(q)}`).join(` ${opSym} `);
+          const valExpr = sortedTaps.map(q => getQBit(q)).join(` ${opSym} `);
+          el.liveExcitation.textContent = `D${msbSub} = ${symExpr} = ${valExpr} = ${fb}`;
+        } else {
+          el.liveExcitation.textContent = `D${msbSub} = ${fb} (No feedback taps)`;
+        }
+      }
+
+      function renderMetrics() {
+        const bitsStr = regToStr();
+        const dec = parseInt(bitsStr, 2);
+        const hex = "0x" + dec.toString(16).toUpperCase();
+        const fb = computeFeedback();
+        const outBit = state.reg[state.bits - 1];
+        const maxPeriod = (1 << state.bits) - 1;
+        const uniqueCount = state.visitedStates.size;
+
+        el.metricState.textContent = bitsStr;
+        el.metricDecHex.textContent = `Dec: ${dec} · Hex: ${hex}`;
+        el.metricFeedback.textContent = fb;
+        el.metricFeedback.style.color = fb ? "var(--cyan)" : "var(--text-muted)";
+        el.metricNextD.textContent = `Next D${formatSubscript(state.bits - 1)} ← ${fb}`;
+        el.metricStep.textContent = `t = ${state.step}`;
+        el.metricOut.textContent = `PRBS Out (Q₀): ${outBit}`;
+
+        const displayUnique = isLockupState(bitsStr) ? 0 : uniqueCount;
+        el.metricPeriod.textContent = `${displayUnique} / ${maxPeriod}`;
+        el.periodBar.style.width = `${Math.min(100, (displayUnique / maxPeriod) * 100)}%`;
+
+        // Status badge
+        el.cycleStatusBadge.className = "status-badge";
+        if (isLockupState(bitsStr)) {
+          el.cycleStatusBadge.classList.add("lockup");
+          el.cycleStatusBadge.textContent = `LOCKUP STATE (${bitsStr})`;
+        } else if (state.cyclePeriodFound !== null) {
+          if (state.cyclePeriodFound === maxPeriod) {
+            el.cycleStatusBadge.classList.add("maximal");
+            el.cycleStatusBadge.textContent = `Maximal Cycle Complete (${maxPeriod}/${maxPeriod})`;
+          } else {
+            el.cycleStatusBadge.classList.add("short");
+            el.cycleStatusBadge.textContent = `Non-Maximal Cycle (${state.cyclePeriodFound}/${maxPeriod})`;
+          }
+        } else if (uniqueCount === maxPeriod) {
+          el.cycleStatusBadge.classList.add("maximal");
+          el.cycleStatusBadge.textContent = `All ${maxPeriod} Non-Zero States Visited`;
+        } else {
+          el.cycleStatusBadge.textContent = `Stepping (${uniqueCount}/${maxPeriod} states)`;
+        }
+      }
+
+      function renderCircuitSvg(didPulse) {
+        const n = state.bits;
+        const svgW = 920;
+        const svgH = 335;
+        el.lfsrSvg.setAttribute("viewBox", `0 0 ${svgW} ${svgH}`);
+
+        const leftMargin = 105;
+        const rightMargin = 85;
+        const usableW = svgW - leftMargin - rightMargin;
+        const boxW = n <= 4 ? 98 : n === 5 ? 86 : 76;
+        const boxH = 104;
+        const boxY = 48;
+        const stepX = (usableW - boxW) / (n - 1);
+
+        const fb = computeFeedback();
+        const fbActive = fb === 1;
+        const clkPulseCls = didPulse ? " pulse" : "";
+        const flashCls = didPulse ? " clk-flash" : "";
+
+        // Gate placement in lower-left so all tap wires enter cleanly from the right
+        const gateX = 140;
+        const gateY = 266;
+        const clkBusY = 186;
+        const fbReturnY = gateY;
+
+        let html = `
+          <defs>
+            <marker id="arrowOff" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+              <path d="M 0 1 L 10 5 L 0 9 z" fill="#2b3a55"/>
+            </marker>
+            <marker id="arrowOn" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+              <path d="M 0 1 L 10 5 L 0 9 z" fill="#00f5d4"/>
+            </marker>
+          </defs>
+        `;
+
+        // Feedback Return Wire (from Gate output -> left -> up -> D_{n-1})
+        const firstBoxX = leftMargin;
+        const dInY = boxY + 34;
+        const gateOutX = state.gate === "XNOR" ? gateX - 58 : gateX - 46;
+        const returnPath = `M ${gateOutX} ${gateY} L 42 ${fbReturnY} L 42 ${dInY} L ${firstBoxX - 4} ${dInY}`;
+        html += `<path class="wire-path ${fbActive ? "active" : ""}${didPulse && fbActive ? " wire-shift-anim" : ""}"
+                  d="${returnPath}" marker-end="url(#${fbActive ? "arrowOn" : "arrowOff"})" />`;
+        html += `<text x="50" y="${dInY - 10}" fill="${fbActive ? "#00f5d4" : "#94a3b8"}" font-family="monospace" font-size="12" font-weight="bold">FB = ${fb}</text>`;
+
+        // Output PRBS wire from Q_0 (rightmost box)
+        const lastBoxX = leftMargin + (n - 1) * stepX;
+        const lastBit = state.reg[n - 1];
+        const lastHigh = lastBit === 1;
+        html += `<path class="wire-path ${lastHigh ? "active" : ""}"
+                  d="M ${lastBoxX + boxW} ${dInY} L ${svgW - 22} ${dInY}" marker-end="url(#${lastHigh ? "arrowOn" : "arrowOff"})"/>`;
+        html += `<text x="${svgW - 74}" y="${dInY - 12}" fill="${lastHigh ? "#00f5d4" : "#94a3b8"}" font-family="monospace" font-size="12" font-weight="bold">OUT (${lastBit})</text>`;
+
+        // Clock bus line
+        html += `<path class="wire-path clk-bus${clkPulseCls}" d="M 70 ${clkBusY} L ${lastBoxX + 26} ${clkBusY}"/>`;
+        html += `<text x="16" y="${clkBusY + 4}" fill="${didPulse ? "#f59e0b" : "#94a3b8"}" font-family="monospace" font-size="11" font-weight="bold">CLK ↑</text>`;
+
+        // Draw Flip-Flops and shift interconnects
+        const tapPoints = [];
+        for (let i = 0; i < n; i++) {
+          const qIdx = n - 1 - i; // Q_{n-1} down to Q_0
+          const bitVal = state.reg[i];
+          const isHigh = bitVal === 1;
+          const x = leftMargin + i * stepX;
+
+          // Inter-stage Q -> D wire
+          if (i < n - 1) {
+            const nextX = leftMargin + (i + 1) * stepX;
+            html += `<path class="wire-path ${isHigh ? "active" : ""}${didPulse ? " wire-shift-anim" : ""}"
+                      d="M ${x + boxW} ${dInY} L ${nextX - 4} ${dInY}"
+                      marker-end="url(#${isHigh ? "arrowOn" : "arrowOff"})"/>`;
+          }
+
+          // Clock drop line into DFF
+          const clkTapX = x + 26;
+          html += `<path class="wire-path clk-bus${clkPulseCls}" d="M ${clkTapX} ${clkBusY} L ${clkTapX} ${boxY + boxH}"/>`;
+
+          // Tap drop line if this Q is tapped
+          if (state.tapsQ.includes(qIdx)) {
+            const tapWireX = i === n - 1 ? x + boxW + 24 : x + boxW + (stepX - boxW) * 0.45;
+            tapPoints.push({ x: tapWireX, qIdx, isHigh });
+            const spread = state.tapsQ.length > 1 ? 36 / (state.tapsQ.length - 1) : 0;
+            const dropY = state.tapsQ.length === 1 ? gateY : (gateY - 18 + (tapPoints.length - 1) * spread);
+            // Vertical drop from Q output wire down to feedback lane and left into gate
+            html += `<circle cx="${tapWireX}" cy="${dInY}" r="4" fill="${isHigh ? "#00f5d4" : "#64748b"}" />`;
+            html += `<path class="wire-path ${isHigh ? "active" : ""}" d="M ${tapWireX} ${dInY} L ${tapWireX} ${dropY} L ${gateX + 34} ${dropY}"/>`;
+          }
+
+          // D Flip-Flop Box
+          html += `
+            <g>
+              <rect class="dff-box ${isHigh ? "high" : ""}${flashCls}" x="${x}" y="${boxY}" width="${boxW}" height="${boxH}" />
+              <text x="${x + boxW / 2}" y="${boxY - 10}" text-anchor="middle" fill="#94a3b8" font-family="monospace" font-size="12" font-weight="bold">DFF ${qIdx}</text>
+              <text x="${x + 10}" y="${dInY + 4}" fill="#38bdf8" font-family="monospace" font-size="12" font-weight="bold">D${formatSubscript(qIdx)}</text>
+              <text x="${x + boxW - 12}" y="${dInY + 4}" text-anchor="end" fill="#00f5d4" font-family="monospace" font-size="12" font-weight="bold">Q${formatSubscript(qIdx)}</text>
+
+              <!-- Clock triangle at bottom -->
+              <polygon points="${clkTapX - 7},${boxY + boxH} ${clkTapX},${boxY + boxH - 11} ${clkTapX + 7},${boxY + boxH}"
+                       fill="none" stroke="${didPulse ? "#f59e0b" : "#64748b"}" stroke-width="1.8"/>
+
+              <!-- Large State Value Display -->
+              <rect x="${x + boxW / 2 - 20}" y="${boxY + 48}" width="40" height="32" rx="6"
+                    fill="${isHigh ? "rgba(0, 245, 212, 0.16)" : "rgba(30, 41, 59, 0.65)"}"
+                    stroke="${isHigh ? "rgba(0, 245, 212, 0.65)" : "rgba(100, 116, 139, 0.35)"}" />
+              <text x="${x + boxW / 2}" y="${boxY + 70}" text-anchor="middle"
+                    fill="${isHigh ? "#00f5d4" : "#94a3b8"}" font-family="monospace" font-size="18" font-weight="bold">${bitVal}</text>
+            </g>
+          `;
+        }
+
+        // Draw XOR / XNOR Feedback Logic Gate facing LEFT (inputs on right, output on left)
+        const gx = gateX;
+        const gy = gateY;
+        const gateStroke = fbActive ? "#00f5d4" : "#a855f7";
+        const gateFill = fbActive ? "rgba(0, 245, 212, 0.12)" : "rgba(168, 85, 247, 0.12)";
+        html += `
+          <g>
+            <!-- Extra curved back-line for XOR/XNOR -->
+            <path d="M ${gx + 42} ${gy - 28} Q ${gx + 26} ${gy} ${gx + 42} ${gy + 28}" fill="none" stroke="${gateStroke}" stroke-width="2.6" stroke-linecap="round"/>
+            <!-- Main XOR body facing left -->
+            <path d="M ${gx + 34} ${gy - 28} Q ${gx + 18} ${gy} ${gx + 34} ${gy + 28} Q ${gx - 18} ${gy + 26} ${gx - 46} ${gy} Q ${gx - 18} ${gy - 26} ${gx + 34} ${gy - 28} Z"
+                  fill="${gateFill}" stroke="${gateStroke}" stroke-width="2.4"/>
+            ${state.gate === "XNOR"
+              ? `<circle cx="${gx - 52}" cy="${gy}" r="6" fill="#0c1222" stroke="${gateStroke}" stroke-width="2.4"/>`
+              : ""}
+            <text x="${gx - 2}" y="${gy + 4}" text-anchor="middle" fill="#f8fafc" font-family="monospace" font-size="12" font-weight="bold">${state.gate}</text>
+            <text x="${gx + 46}" y="${gy + 42}" text-anchor="start" fill="#94a3b8" font-family="monospace" font-size="11">
+              Feedback Gate (${state.tapsQ.length ? state.tapsQ.map(q => "Q" + formatSubscript(q)).join(state.gate === "XOR" ? " ⊕ " : " ⊙ ") : "Const"})
+            </text>
+          </g>
+        `;
+
+        el.lfsrSvg.innerHTML = html;
+      }
+
+      function renderOutputSequence() {
+        el.seqStream.innerHTML = "";
+        state.history.forEach((entry, idx) => {
+          const span = document.createElement("span");
+          span.className = "bit-chip" + (entry.outBit ? " one" : "") + (idx === state.history.length - 1 ? " latest" : "");
+          span.textContent = entry.outBit;
+          span.title = `Step t=${entry.step}: State=${entry.bitsStr}, Out=${entry.outBit}`;
+          el.seqStream.appendChild(span);
+        });
+        el.seqStream.scrollTop = el.seqStream.scrollHeight;
+      }
+
+      function renderWaveform() {
+        const windowEntries = state.history.slice(-16);
+        const cols = Math.max(windowEntries.length, 1);
+        const w = 820;
+        const leftPad = 62;
+        const colW = (w - leftPad - 16) / 16;
+        const rows = state.bits + 2; // CLK + n Q bits + FB
+        const rowH = 26;
+        const h = rows * rowH + 22;
+        el.waveSvg.setAttribute("viewBox", `0 0 ${w} ${h}`);
+
+        let svg = "";
+        // Vertical clock grid
+        for (let c = 0; c <= 16; c++) {
+          const x = leftPad + c * colW;
+          svg += `<line x1="${x}" y1="6" x2="${x}" y2="${h - 14}" stroke="rgba(148,163,184,0.1)" stroke-width="1"/>`;
+        }
+
+        // Row labels & waveforms
+        const signals = [{ name: "CLK", color: "#f59e0b", type: "clk" }];
+        for (let q = state.bits - 1; q >= 0; q--) {
+          signals.push({ name: `Q${formatSubscript(q)}`, color: "#00f5d4", type: "q", qIdx: q });
+        }
+        signals.push({ name: "FB", color: "#a855f7", type: "fb" });
+
+        signals.forEach((sig, rIdx) => {
+          const topY = 10 + rIdx * rowH;
+          const hiY = topY + 3;
+          const loY = topY + 18;
+          svg += `<text x="8" y="${topY + 15}" fill="${sig.color}" font-family="monospace" font-size="11" font-weight="bold">${sig.name}</text>`;
+
+          if (sig.type === "clk") {
+            let pts = [];
+            for (let c = 0; c < windowEntries.length; c++) {
+              const x0 = leftPad + c * colW;
+              const xm = x0 + colW * 0.5;
+              const x1 = x0 + colW;
+              pts.push(`${x0},${loY} ${x0},${hiY} ${xm},${hiY} ${xm},${loY} ${x1},${loY}`);
+            }
+            svg += `<polyline points="${pts.join(" ")}" fill="none" stroke="${sig.color}" stroke-width="1.8"/>`;
+          } else {
+            let pts = [];
+            let prevY = null;
+            for (let c = 0; c < windowEntries.length; c++) {
+              const entry = windowEntries[c];
+              const val = sig.type === "fb"
+                ? entry.fb
+                : entry.regSnapshot[state.bits - 1 - sig.qIdx];
+              const y = val ? hiY : loY;
+              const x0 = leftPad + c * colW;
+              const x1 = x0 + colW;
+              if (prevY !== null && prevY !== y) {
+                pts.push(`${x0},${prevY} ${x0},${y}`);
+              }
+              pts.push(`${x0},${y} ${x1},${y}`);
+              prevY = y;
+            }
+            svg += `<polyline points="${pts.join(" ")}" fill="none" stroke="${sig.color}" stroke-width="2"/>`;
+          }
+        });
+
+        // Step index footer
+        windowEntries.forEach((entry, c) => {
+          const x = leftPad + c * colW + colW * 0.5;
+          svg += `<text x="${x}" y="${h - 2}" text-anchor="middle" fill="#64748b" font-family="monospace" font-size="9">t${entry.step}</text>`;
+        });
+
+        el.waveSvg.innerHTML = svg;
+      }
+
+      function renderStateTable() {
+        const qHeaders = [];
+        for (let q = state.bits - 1; q >= 0; q--) qHeaders.push(`Q${formatSubscript(q)}`);
+
+        el.stateTableHead.innerHTML = `
+          <th>Clock Step</th>
+          <th>Bit States (${qHeaders.join(" ")})</th>
+          <th>Computed Feedback</th>
+          <th>Output (Q₀)</th>
+          <th>Decimal</th>
+          <th>Status</th>
+        `;
+
+        // Render newest rows at top or chronological? Chronological with auto-scroll to bottom is classic for state tables
+        el.stateTableBody.innerHTML = "";
+        state.history.forEach((row, idx) => {
+          const tr = document.createElement("tr");
+          if (idx === state.history.length - 1) tr.classList.add("current-row");
+          else if (row.status.startsWith("Repeat")) tr.classList.add("repeat-row");
+
+          const bitBoxes = row.bitsStr.split("").map(b =>
+            `<span class="b-box${b === "1" ? " hi" : ""}">${b}</span>`
+          ).join("");
+
+          let statusColor = "var(--text-muted)";
+          if (row.status === "Seed") statusColor = "var(--blue)";
+          else if (row.status === "Lockup") statusColor = "var(--rose)";
+          else if (row.status.startsWith("Repeat")) statusColor = "var(--amber)";
+          else statusColor = "var(--emerald)";
+
+          tr.innerHTML = `
+            <td>t = ${row.step}</td>
+            <td><div class="bit-cell">${bitBoxes}</div></td>
+            <td style="color:${row.fb ? "var(--cyan)" : "var(--text-muted)"}; font-weight:700;">${row.fb}</td>
+            <td style="color:${row.outBit ? "var(--cyan)" : "var(--text-muted)"}; font-weight:700;">${row.outBit}</td>
+            <td>${row.dec}</td>
+            <td style="color:${statusColor}; font-weight:600;">${row.status}</td>
+          `;
+          el.stateTableBody.appendChild(tr);
+        });
+
+        el.tableSummary.textContent = `${state.history.length} state(s) logged · Max cycle = ${(1 << state.bits) - 1}`;
+        const scrollBox = el.stateTableBody.closest(".table-scroll");
+        if (scrollBox) scrollBox.scrollTop = scrollBox.scrollHeight;
+      }
+
+      function renderAll(didPulse) {
+        renderHeaderAndControls();
+        renderMetrics();
+        renderCircuitSvg(didPulse);
+        renderOutputSequence();
+        renderWaveform();
+        renderStateTable();
+      }
+
+      // Event Listeners
+      el.bitWidthBtns.addEventListener("click", (e) => {
+        const btn = e.target.closest("button[data-bits]");
+        if (!btn) return;
+        const newBits = Number(btn.dataset.bits);
+        if (newBits === state.bits) return;
+
+        el.bitWidthBtns.querySelectorAll(".seg-btn").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+
+        state.bits = newBits;
+        const firstPoly = POLYNOMIALS[newBits][0];
+        state.polyId = firstPoly.id;
+        state.tapsQ = [...firstPoly.tapsQ];
+        el.seedInput.value = DEFAULT_SEEDS[newBits];
+        populatePolyDropdown();
+        renderTapCheckboxes();
+        resetSimulation(true);
+      });
+
+      el.gateTypeBtns.addEventListener("click", (e) => {
+        const btn = e.target.closest("button[data-gate]");
+        if (!btn) return;
+        state.gate = btn.dataset.gate;
+        el.gateTypeBtns.querySelectorAll(".seg-btn").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        resetSimulation(true);
+      });
+
+      el.polySelect.addEventListener("change", () => {
+        state.polyId = el.polySelect.value;
+        const found = POLYNOMIALS[state.bits].find(p => p.id === state.polyId);
+        if (found && found.id !== "custom") {
+          state.tapsQ = [...found.tapsQ];
+        }
+        renderTapCheckboxes();
+        resetSimulation(true);
+      });
+
+      el.seedInput.addEventListener("input", () => {
+        const parsed = parseSeedInput();
+        if (parsed) {
+          resetSimulation(true);
+        }
+      });
+
+      el.randomSeedBtn.addEventListener("click", () => {
+        const maxVal = (1 << state.bits) - 1;
+        const lockupVal = state.gate === "XOR" ? 0 : maxVal;
+        let rand = lockupVal;
+        while (rand === lockupVal) {
+          rand = Math.floor(Math.random() * (maxVal + 1));
+        }
+        el.seedInput.value = rand.toString(2).padStart(state.bits, "0");
+        resetSimulation(true);
+      });
+
+      el.lockupSeedBtn.addEventListener("click", () => {
+        const ch = state.gate === "XOR" ? "0" : "1";
+        el.seedInput.value = ch.repeat(state.bits);
+        resetSimulation(true);
+      });
+
+      el.stepBtn.addEventListener("click", () => {
+        stopAutoClock();
+        stepClock();
+      });
+
+      el.playBtn.addEventListener("click", () => {
+        if (state.isPlaying) stopAutoClock();
+        else startAutoClock();
+      });
+
+      el.resetBtn.addEventListener("click", () => {
+        resetSimulation(true);
+      });
+
+      el.speedSlider.addEventListener("input", () => {
+        state.intervalMs = Number(el.speedSlider.value);
+        const hz = (1000 / state.intervalMs).toFixed(1);
+        el.speedVal.textContent = `${hz} Hz (${state.intervalMs} ms)`;
+        if (state.isPlaying) {
+          clearInterval(state.timerId);
+          state.timerId = setInterval(stepClock, state.intervalMs);
+        }
+      });
+
+      el.copySeqBtn.addEventListener("click", async () => {
+        const seq = state.history.map(h => h.outBit).join("");
+        try {
+          await navigator.clipboard.writeText(seq);
+          el.copySeqBtn.textContent = "Copied!";
+          setTimeout(() => { el.copySeqBtn.textContent = "Copy Bits"; }, 1200);
+        } catch {
+          el.copySeqBtn.textContent = seq.slice(0, 12) + "...";
+          setTimeout(() => { el.copySeqBtn.textContent = "Copy Bits"; }, 1500);
+        }
+      });
+
+      el.exportCsvBtn.addEventListener("click", () => {
+        const header = "Step,BitStates,FeedbackBit,OutputBit,Decimal,Status\n";
+        const rows = state.history.map(r => `${r.step},"${r.bitsStr}",${r.fb},${r.outBit},${r.dec},"${r.status}"`).join("\n");
+        const blob = new Blob([header + rows], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `lfsr_${state.bits}bit_${state.gate}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      });
+
+      // Initialize Simulator
+      populatePolyDropdown();
+      renderTapCheckboxes();
+      resetSimulation(true);
+    })();
+  </script>
+</body>
+</html>
